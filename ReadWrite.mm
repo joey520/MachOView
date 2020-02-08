@@ -24,7 +24,7 @@
   uint8_t buffer;
   range = NSMakeRange(NSMaxRange(range),sizeof(uint8_t));
   [fileData getBytes:&buffer range:range];
-  if (lastReadHex) *lastReadHex = [NSString stringWithFormat:@"%.2X",(0xFF & buffer)];
+  if (lastReadHex) *lastReadHex = [NSString stringWithFormat:@"0x%.2X",(0xFF & buffer)];
   [realData getBytes:&buffer range:range];
   return buffer;
 }
@@ -35,7 +35,7 @@
   uint16_t buffer;
   range = NSMakeRange(NSMaxRange(range),sizeof(uint16_t));
   [fileData getBytes:&buffer range:range];
-  if (lastReadHex) *lastReadHex = [NSString stringWithFormat:@"%.4X",(0xFFFF & buffer)];
+  if (lastReadHex) *lastReadHex = [NSString stringWithFormat:@"0x%.4X",(0xFFFF & buffer)];
   [realData getBytes:&buffer range:range];
   return buffer;
 }
@@ -46,7 +46,7 @@
   uint32_t buffer;
   range = NSMakeRange(NSMaxRange(range),sizeof(uint32_t));
   [fileData getBytes:&buffer range:range];
-  if (lastReadHex) *lastReadHex = [NSString stringWithFormat:@"%.8X",buffer];
+  if (lastReadHex) *lastReadHex = [NSString stringWithFormat:@"0x0x%.8X",buffer];
   [realData getBytes:&buffer range:range];
   return buffer;
 }
@@ -57,7 +57,7 @@
   uint64_t buffer;
   range = NSMakeRange(NSMaxRange(range),sizeof(uint64_t));
   [fileData getBytes:&buffer range:range];
-  if (lastReadHex) *lastReadHex = [NSString stringWithFormat:@"%.16qX",buffer];
+  if (lastReadHex) *lastReadHex = [NSString stringWithFormat:@"0x%.16qX",buffer];
   [realData getBytes:&buffer range:range];
   return buffer;
 }
@@ -68,7 +68,7 @@
   int8_t buffer;
   range = NSMakeRange(NSMaxRange(range),sizeof(int8_t));
   [fileData getBytes:&buffer range:range];
-  if (lastReadHex) *lastReadHex = [NSString stringWithFormat:@"%.2X",(0xFF & buffer)];
+  if (lastReadHex) *lastReadHex = [NSString stringWithFormat:@"0x%.2X",(0xFF & buffer)];
   [realData getBytes:&buffer range:range];
   return buffer;
 }
@@ -79,7 +79,7 @@
   int16_t buffer;
   range = NSMakeRange(NSMaxRange(range),sizeof(int16_t));
   [fileData getBytes:&buffer range:range];
-  if (lastReadHex) *lastReadHex = [NSString stringWithFormat:@"%.4X",(0xFFFF & buffer)];
+  if (lastReadHex) *lastReadHex = [NSString stringWithFormat:@"0x%.4X",(0xFFFF & buffer)];
   [realData getBytes:&buffer range:range];
   return buffer;
 }
@@ -90,7 +90,7 @@
   int32_t buffer;
   range = NSMakeRange(NSMaxRange(range),sizeof(int32_t));
   [fileData getBytes:&buffer range:range];
-  if (lastReadHex) *lastReadHex = [NSString stringWithFormat:@"%.8X",buffer];
+  if (lastReadHex) *lastReadHex = [NSString stringWithFormat:@"0x%.8X",buffer];
   [realData getBytes:&buffer range:range];
   return buffer;
 }
@@ -101,7 +101,7 @@
   int64_t buffer;
   range = NSMakeRange(NSMaxRange(range),sizeof(int64_t));
   [fileData getBytes:&buffer range:range];
-  if (lastReadHex) *lastReadHex = [NSString stringWithFormat:@"%.16qX",buffer];
+  if (lastReadHex) *lastReadHex = [NSString stringWithFormat:@"0x%.16qX",buffer];
   [realData getBytes:&buffer range:range];
   return buffer;
 }

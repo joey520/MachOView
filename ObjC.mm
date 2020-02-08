@@ -19,6 +19,28 @@
 #define RO_META                     (1<<0)
 #define RO_ROOT                     (1<<1)
 #define RO_HAS_CXX_STRUCTORS        (1<<2)
+// class has +load implementation
+#define RO_HAS_LOAD_METHOD    (1<<3)
+// class has visibility=hidden set
+#define RO_HIDDEN             (1<<4)
+// class has attribute(objc_exception): OBJC_EHTYPE_$_ThisClass is non-weak
+#define RO_EXCEPTION          (1<<5)
+// this bit is available for reassignment
+// #define RO_REUSE_ME           (1<<6)
+// class compiled with ARC
+#define RO_IS_ARC             (1<<7)
+// class has .cxx_destruct but no .cxx_construct (with RO_HAS_CXX_STRUCTORS)
+#define RO_HAS_CXX_DTOR_ONLY  (1<<8)
+// class is not ARC but has ARC-style weak ivar layout
+#define RO_HAS_WEAK_WITHOUT_ARC (1<<9)
+
+// class is in an unloadable bundle - must never be set by compiler
+#define RO_FROM_BUNDLE        (1<<29)
+// class is unrealized future class - must never be set by compiler
+#define RO_FUTURE             (1<<30)
+// class is realized - must never be set by compiler
+#define RO_REALIZED           (1<<31)
+
 
 using namespace std;
 
@@ -229,6 +251,15 @@ struct message_ref
 
 //--------------------- ObjC2 64bit ----------------------------------------
 
+struct metaclass64_t
+{
+  uint64_t isa;               // class_t * (64-bit pointer)
+  uint64_t superclass;        // class_t * (64-bit pointer)
+  uint64_t cache;             // Cache (64-bit pointer)
+  uint64_t vtable;            // IMP * (64-bit pointer)
+  uint64_t data;              // class_ro_t * (64-bit pointer)
+};
+
 struct class64_t 
 {
   uint64_t isa;               // class_t * (64-bit pointer)
@@ -299,6 +330,8 @@ struct protocol64_t
   uint64_t optionalInstanceMethods;	// method_list_t * (64-bit pointer)
   uint64_t optionalClassMethods;	// method_list_t * (64-bit pointer)
   uint64_t instanceProperties;	// struct objc_property_list * (64-bit pointer)
+    uint32_t size;   // sizeof(protocol_t)
+    uint32_t flags;
 };
 
 struct objc_property64_list 
@@ -2133,76 +2166,84 @@ struct message_ref64
                          :lastReadHex
                          :@"Instance Properties"
                          :[self findSymbolAtRVA64:protocol64_t->instanceProperties]];
-  
-  MVNode * childNode = nil;
-  
+    [dataController read_uint32:range lastReadHex:&lastReadHex];
+    [node.details appendRow:[NSString stringWithFormat:@"%.8lX", range.location]
+                           :lastReadHex
+                           :@"Size"
+                           :[NSString stringWithFormat:@"%u", protocol64_t->size]];
+    [dataController read_uint32:range lastReadHex:&lastReadHex];
+    [node.details appendRow:[NSString stringWithFormat:@"%.8lX", range.location]
+                           :lastReadHex
+                           :@"Flag"
+                           :[NSString stringWithFormat:@"%u", protocol64_t->flags]];
+    
   // Protocols
-  if (protocol64_t->protocols && (childNode = [self sectionNodeContainsRVA64:protocol64_t->protocols]))
+  if (protocol64_t->protocols)
   {
     uint32_t location = [self RVA64ToFileOffset:protocol64_t->protocols];
     NSString * caption = [self findSymbolAtRVA64:protocol64_t->protocols];
     MATCH_STRUCT(protocol64_list_t,location)
-    [self createObjC2Protocol64ListNode:childNode
+    [self createObjC2Protocol64ListNode:node
                                 caption:caption
                                location:location
                               protocols:protocol64_list_t];
   }
   
   // Instance Methods
-  if (protocol64_t->instanceMethods && (childNode = [self sectionNodeContainsRVA64:protocol64_t->instanceMethods]))
+  if (protocol64_t->instanceMethods)
   {
     uint32_t location = [self RVA64ToFileOffset:protocol64_t->instanceMethods];
     NSString * caption = [self findSymbolAtRVA64:protocol64_t->instanceMethods];
     MATCH_STRUCT(method64_list_t,location)
-    [self createObjC2Method64ListNode:childNode
+    [self createObjC2Method64ListNode:node
                               caption:caption
                              location:location
                               methods:method64_list_t];
   }
   
   // Class Methods
-  if (protocol64_t->classMethods && (childNode = [self sectionNodeContainsRVA64:protocol64_t->classMethods]))
+  if (protocol64_t->classMethods)
   {
     uint32_t location = [self RVA64ToFileOffset:protocol64_t->classMethods];
     NSString * caption = [self findSymbolAtRVA64:protocol64_t->classMethods];
     MATCH_STRUCT(method64_list_t,location)
-    [self createObjC2Method64ListNode:childNode
+    [self createObjC2Method64ListNode:node
                               caption:caption
                              location:location
                               methods:method64_list_t];
   }
   
   // Optional Instance Methods
-  if (protocol64_t->optionalInstanceMethods && (childNode = [self sectionNodeContainsRVA64:protocol64_t->optionalInstanceMethods]))
+  if (protocol64_t->optionalInstanceMethods)
   {
     uint32_t location = [self RVA64ToFileOffset:protocol64_t->optionalInstanceMethods];
     NSString * caption = [self findSymbolAtRVA64:protocol64_t->optionalInstanceMethods];
     MATCH_STRUCT(method64_list_t,location)
-    [self createObjC2Method64ListNode:childNode
+    [self createObjC2Method64ListNode:node
                               caption:caption
                              location:location
                               methods:method64_list_t];
   }
   
   // Optional Class Methods
-  if (protocol64_t->optionalClassMethods && (childNode = [self sectionNodeContainsRVA64:protocol64_t->optionalClassMethods]))
+  if (protocol64_t->optionalClassMethods)
   {
     uint32_t location = [self RVA64ToFileOffset:protocol64_t->optionalClassMethods];
     NSString * caption = [self findSymbolAtRVA64:protocol64_t->optionalClassMethods];
     MATCH_STRUCT(method64_list_t,location)
-    [self createObjC2Method64ListNode:childNode
+    [self createObjC2Method64ListNode:node
                               caption:caption
                              location:location
                               methods:method64_list_t];
   }
   
   // Instance Properties
-  if (protocol64_t->instanceProperties && (childNode = [self sectionNodeContainsRVA64:protocol64_t->instanceProperties]))
+  if (protocol64_t->instanceProperties)
   {
     uint32_t location = [self RVA64ToFileOffset:protocol64_t->instanceProperties];
     NSString * caption = [self findSymbolAtRVA64:protocol64_t->instanceProperties];
     MATCH_STRUCT(objc_property64_list,location)
-    [self createObjC2Property64ListNode:childNode
+    [self createObjC2Property64ListNode:node
                                 caption:caption
                                location:location
                              properties:objc_property64_list];
@@ -2678,14 +2719,14 @@ struct message_ref64
   }
   
   MVNodeSaver nodeSaver;
-  node = [parent insertChildWithDetails:[@"ObjC2 Class64 Info: " stringByAppendingString:caption]
+  node = [parent insertChildWithDetails:[@"ObjC2 Class64 RO: " stringByAppendingString:caption]
                                location:location 
                                  length:sizeof(struct class64_ro_t)
                                   saver:nodeSaver];
   
   NSRange range = NSMakeRange(location,0);
   NSString * lastReadHex;
-  
+    
   [dataController read_uint32:range lastReadHex:&lastReadHex];
   [node.details appendRow:[NSString stringWithFormat:@"%.8lX", range.location]
                          :lastReadHex
@@ -2695,6 +2736,16 @@ struct message_ref64
   if (class64_ro_t->flags & RO_META) [node.details appendRow:@"":@"":@"0x1":@"RO_META"];
   if (class64_ro_t->flags & RO_ROOT) [node.details appendRow:@"":@"":@"0x2":@"RO_ROOT"];
   if (class64_ro_t->flags & RO_HAS_CXX_STRUCTORS) [node.details appendRow:@"":@"":@"0x4":@"RO_HAS_CXX_STRUCTORS"];
+    if (class64_ro_t->flags & RO_HAS_LOAD_METHOD) [node.details appendRow:@"":@"":@"0x8":@"RO_HAS_LOAD_METHOD"];
+    if (class64_ro_t->flags & RO_HIDDEN) [node.details appendRow:@"":@"":@"0x10":@"RO_HIDDEN"];
+    if (class64_ro_t->flags & RO_EXCEPTION) [node.details appendRow:@"":@"":@"0x20":@"RO_EXCEPTION"];
+    if (class64_ro_t->flags & RO_IS_ARC) [node.details appendRow:@"":@"":@"0x40":@"RO_IS_ARC"];
+    if (class64_ro_t->flags & RO_HAS_CXX_DTOR_ONLY) [node.details appendRow:@"":@"":@"0x80":@"RO_HAS_CXX_DTOR_ONLY"];
+    if (class64_ro_t->flags & RO_HAS_WEAK_WITHOUT_ARC) [node.details appendRow:@"":@"":@"0x100":@"RO_HAS_WEAK_WITHOUT_ARC"];
+    if (class64_ro_t->flags & RO_FROM_BUNDLE) [node.details appendRow:@"":@"":@"0x200":@"RO_FROM_BUNDLE"];
+    if (class64_ro_t->flags & RO_FUTURE) [node.details appendRow:@"":@"":@"0x400":@"RO_FUTURE"];
+    if (class64_ro_t->flags & RO_REALIZED) [node.details appendRow:@"":@"":@"0x800":@"RO_REALIZED"];
+
   
   [dataController read_uint32:range lastReadHex:&lastReadHex];
   [node.details appendRow:[NSString stringWithFormat:@"%.8lX", range.location]
@@ -2756,51 +2807,50 @@ struct message_ref64
                          :@"Base Properties"
                          :[self findSymbolAtRVA64:class64_ro_t->baseProperties]];
   
-  MVNode * childNode = nil;
-  
+ //现在已经没这几个专门的list node了
   // Base Methods
-  if (class64_ro_t->baseMethods && (childNode = [self sectionNodeContainsRVA64:class64_ro_t->baseMethods]))
+  if (class64_ro_t->baseMethods)
   {
     uint32_t location = [self RVA64ToFileOffset:class64_ro_t->baseMethods];
     NSString * caption = [self findSymbolAtRVA64:class64_ro_t->baseMethods];
     MATCH_STRUCT(method64_list_t,location)
-    [self createObjC2Method64ListNode:childNode
+    [self createObjC2Method64ListNode:node
                               caption:caption
                              location:location
                               methods:method64_list_t];
   }
   
   // Base Protocols
-  if (class64_ro_t->baseProtocols && (childNode = [self sectionNodeContainsRVA64:class64_ro_t->baseProtocols]))
+  if (class64_ro_t->baseProtocols)
   {
     uint32_t location = [self RVA64ToFileOffset:class64_ro_t->baseProtocols];
     NSString * caption = [self findSymbolAtRVA64:class64_ro_t->baseProtocols];
     MATCH_STRUCT(protocol64_list_t,location)
-    [self createObjC2Protocol64ListNode:childNode
+    [self createObjC2Protocol64ListNode:node
                                 caption:caption
                                location:location
                               protocols:protocol64_list_t];
   }
   
   // Instance Variables
-  if (class64_ro_t->ivars && (childNode = [self sectionNodeContainsRVA64:class64_ro_t->ivars]))
+  if (class64_ro_t->ivars)
   {
     uint32_t location = [self RVA64ToFileOffset:class64_ro_t->ivars];
     NSString * caption = [self findSymbolAtRVA64:class64_ro_t->ivars];
     MATCH_STRUCT(ivar64_list_t,location)
-    [self createObjC2Variable64ListNode:childNode
+    [self createObjC2Variable64ListNode:node
                                 caption:caption
                                location:location
                               variables:ivar64_list_t];
   }
   
   // Base Properties
-  if (class64_ro_t->baseProperties && (childNode = [self sectionNodeContainsRVA64:class64_ro_t->baseProperties]))
+  if (class64_ro_t->baseProperties)
   {
     uint32_t location = [self RVA64ToFileOffset:class64_ro_t->baseProperties];
     NSString * caption = [self findSymbolAtRVA64:class64_ro_t->baseProperties];
     MATCH_STRUCT(objc_property64_list,location)
-    [self createObjC2Property64ListNode:childNode
+    [self createObjC2Property64ListNode:node
                                 caption:caption
                                location:location
                              properties:objc_property64_list];
@@ -2884,6 +2934,74 @@ struct message_ref64
   return node;
 }
 
+- (MVNode *)createObjC2MetaClass64Node:(MVNode *)parent
+                               caption:(NSString *)caption
+                              location:(uint32_t)location
+                                 class:(struct metaclass64_t const *)class64_t {
+    // check for parent
+    if (parent == nil)
+    {
+      return nil;
+    }
+    
+    // check for duplicates
+    MVNode * node = [self entryInSectionNode:parent atLocation:location];
+    if (node != nil)
+    {
+      return node;
+    }
+    
+    MVNodeSaver nodeSaver;
+    node = [parent insertChildWithDetails:[@"ObjC2 Meta Class64: " stringByAppendingString:caption]
+                                 location:location
+                                   length:sizeof(struct class64_t)
+                                    saver:nodeSaver];
+    
+    NSRange range = NSMakeRange(location,0);
+    NSString * lastReadHex;
+    
+    [dataController read_uint64:range lastReadHex:&lastReadHex];
+    [node.details appendRow:[NSString stringWithFormat:@"%.8lX", range.location]
+                           :lastReadHex
+                           :@"ISA"
+                           :[self findSymbolAtRVA64:class64_t->isa]];
+    
+    [dataController read_uint64:range lastReadHex:&lastReadHex];
+    [node.details appendRow:[NSString stringWithFormat:@"%.8lX", range.location]
+                           :lastReadHex
+                           :@"Super Class"
+                           :[self findSymbolAtRVA64:class64_t->superclass]];
+    
+    [dataController read_uint64:range lastReadHex:&lastReadHex];
+    [node.details appendRow:[NSString stringWithFormat:@"%.8lX", range.location]
+                           :lastReadHex
+                           :@"Cache"
+                           :[self findSymbolAtRVA64:class64_t->cache]];
+    
+    [dataController read_uint64:range lastReadHex:&lastReadHex];
+    [node.details appendRow:[NSString stringWithFormat:@"%.8lX", range.location]
+                           :lastReadHex
+                           :@"VTable"
+                           :[self findSymbolAtRVA64:class64_t->vtable]];
+    
+    [dataController read_uint64:range lastReadHex:&lastReadHex];
+    [node.details appendRow:[NSString stringWithFormat:@"%.8lX", range.location]
+                           :lastReadHex
+                           :@"Data"
+                           :[self findSymbolAtRVA64:class64_t->data]];
+
+      //注意在新的结构中
+      location = [self RVA64ToFileOffset:class64_t->data];
+      caption = [self findSymbolAtRVA64:class64_t->data];
+      MATCH_STRUCT(class64_ro_t, location)
+      [self createObjC2Class64RONode:node
+                             caption:caption
+                            location:location
+                             classRO:class64_ro_t];
+    
+    return node;
+}
+
 //------------------------------------------------------------------------------
 - (MVNode *)createObjC2Class64Node:(MVNode *)parent
                            caption:(NSString *)caption
@@ -2942,19 +3060,20 @@ struct message_ref64
                          :@"Data"
                          :[self findSymbolAtRVA64:class64_t->data]];
   
-  MVNode * childNode = nil;
-  
-  // readonly data
-  if (class64_t->data && (childNode = [self sectionNodeContainsRVA64:class64_t->data]))
-  {
-    uint32_t location = [self RVA64ToFileOffset:class64_t->data];
-    NSString * caption = [self findSymbolAtRVA64:class64_t->data];
-    MATCH_STRUCT(class64_ro_t,location)
-    [self createObjC2Class64RONode:childNode
+    //isa will be a cycle
+    location = [self RVA64ToFileOffset:class64_t->isa];
+    caption = [self findSymbolAtRVA64:class64_t->isa];
+    MATCH_STRUCT(metaclass64_t, location);
+    [self createObjC2MetaClass64Node:node caption:caption location:location class:metaclass64_t];
+
+    //注意在新的结构中
+    location = [self RVA64ToFileOffset:class64_t->data];
+    caption = [self findSymbolAtRVA64:class64_t->data];
+    MATCH_STRUCT(class64_ro_t, location)
+    [self createObjC2Class64RONode:node
                            caption:caption
                           location:location
                            classRO:class64_ro_t];
-  }
   
   return node;
 }
@@ -3151,64 +3270,62 @@ struct message_ref64
                          :lastReadHex
                          :@"Instance Properties"
                          :[self findSymbolAtRVA64:category64_t->instanceProperties]];
-  
-  MVNode * childNode = nil;
-  
+    
   // CLS
-  if (category64_t->cls && (childNode = [self sectionNodeContainsRVA64:category64_t->cls]))
+  if (category64_t->cls)
   {
     uint32_t location = [self RVA64ToFileOffset:category64_t->cls];
     NSString * caption = [self findSymbolAtRVA64:category64_t->cls];
     MATCH_STRUCT(class64_t,location)
-    [self createObjC2Class64Node:childNode
+    [self createObjC2Class64Node:node
                          caption:caption
                         location:location
                            class:class64_t];
   }
   
   // Instance Methods
-  if (category64_t->instanceMethods && (childNode = [self sectionNodeContainsRVA64:category64_t->instanceMethods]))
+  if (category64_t->instanceMethods)
   {
     uint32_t location = [self RVA64ToFileOffset:category64_t->instanceMethods];
     NSString * caption = [self findSymbolAtRVA64:category64_t->instanceMethods];
     MATCH_STRUCT(method64_list_t,location)
-    [self createObjC2Method64ListNode:childNode
+    [self createObjC2Method64ListNode:node
                               caption:caption
                              location:location
                               methods:method64_list_t];
   }
   
   // Class Methods
-  if (category64_t->classMethods && (childNode = [self sectionNodeContainsRVA64:category64_t->classMethods]))
+  if (category64_t->classMethods)
   {
     uint32_t location = [self RVA64ToFileOffset:category64_t->classMethods];
     NSString * caption = [self findSymbolAtRVA64:category64_t->classMethods];
     MATCH_STRUCT(method64_list_t,location)
-    [self createObjC2Method64ListNode:childNode
+    [self createObjC2Method64ListNode:node
                               caption:caption
                              location:location
                               methods:method64_list_t];
   }
   
   // Protocols
-  if (category64_t->protocols && (childNode = [self sectionNodeContainsRVA64:category64_t->protocols]))
+  if (category64_t->protocols)
   {
     uint32_t location = [self RVA64ToFileOffset:category64_t->protocols];
     NSString * caption = [self findSymbolAtRVA64:category64_t->protocols];
     MATCH_STRUCT(protocol64_list_t,location)
-    [self createObjC2Protocol64ListNode:childNode
+    [self createObjC2Protocol64ListNode:node
                                 caption:caption
                                location:location
                               protocols:protocol64_list_t];
   }
   
   // Instance Properties
-  if (category64_t->instanceProperties && (childNode = [self sectionNodeContainsRVA64:category64_t->instanceProperties]))
+  if (category64_t->instanceProperties)
   {
     uint32_t location = [self RVA64ToFileOffset:category64_t->instanceProperties];
     NSString * caption = [self findSymbolAtRVA64:category64_t->instanceProperties];
     MATCH_STRUCT(objc_property64_list,location)
-    [self createObjC2Property64ListNode:childNode
+    [self createObjC2Property64ListNode:node
                                 caption:caption
                                location:location
                              properties:objc_property64_list];
@@ -3272,57 +3389,51 @@ struct message_ref64
 }
 
 //------------------------------------------------------------------------------
--(void)parseObjC2Class64Pointers:(Pointer64Vector const *)classes
-              Category64Pointers:(Pointer64Vector const *)categories
-              Protocol64Pointers:(Pointer64Vector const *)protocols
+- (void)parseObjC2Class64Pointers:(const Pointer64Vector *)classes classNode:(MVNode *)classNode Category64Pointers:(const Pointer64Vector *)categories categoryNode:(MVNode *)categoryNode Protocol64Pointers:(const Pointer64Vector *)protocols protocolNode:(MVNode *)protocolNode
 {
-  MVNode * node = nil;
-  
-  for (Pointer64Vector::const_iterator iter = classes->begin(); iter != classes->end(); ++iter)
-  {
-    uint64_t const & rva64 = *iter;
-    if (rva64 && (node = [self sectionNodeContainsRVA64:rva64]))
-    {
-      uint32_t location = [self RVA64ToFileOffset:rva64];   
-      NSString * caption = [self findSymbolAtRVA64:rva64];
-      MATCH_STRUCT(class64_t,location)
-      [self createObjC2Class64Node:node
-                           caption:caption
-                          location:location
-                             class:class64_t];
+    if (classNode && classes->size() > 0) {
+        for (Pointer64Vector::const_iterator iter = classes->begin(); iter != classes->end(); ++iter)
+        {
+            uint64_t const & rva64 = *iter;
+            uint32_t location = [self RVA64ToFileOffset:rva64];
+            NSString * caption = [self findSymbolAtRVA64:rva64];
+            MATCH_STRUCT(class64_t,location)
+            [self createObjC2Class64Node:classNode
+                                 caption:caption
+                                location:location
+                                   class:class64_t];
+            
+        }
     }
-  }
-  
-  for (Pointer64Vector::const_iterator iter = categories->begin(); iter != categories->end(); ++iter)
-  {
-    uint64_t const & rva64 = *iter;
-    if (rva64 && (node = [self sectionNodeContainsRVA64:rva64]))
-    {
-      uint32_t location = [self RVA64ToFileOffset:rva64]; 
-      NSString * caption = [self findSymbolAtRVA64:rva64];
-      MATCH_STRUCT(category64_t,location)
-      [self createObjC2Category64Node:node
-                              caption:caption
-                             location:location
-                             category:category64_t];
+    
+    if (categoryNode && categories->size() > 0) {
+        for (Pointer64Vector::const_iterator iter = categories->begin(); iter != categories->end(); ++iter)
+        {
+            uint64_t const & rva64 = *iter;
+            uint32_t location = [self RVA64ToFileOffset:rva64];
+            NSString * caption = [self findSymbolAtRVA64:rva64];
+            MATCH_STRUCT(category64_t,location)
+            [self createObjC2Category64Node:categoryNode
+                                    caption:caption
+                                   location:location
+                                   category:category64_t];
+        }
     }
-  }
-  
-  for (Pointer64Vector::const_iterator iter = protocols->begin(); iter != protocols->end(); ++iter)
-  {
-    uint64_t const & rva64 = *iter;
-    if (rva64 && (node = [self sectionNodeContainsRVA64:rva64]))
-    {
-      uint32_t location = [self RVA64ToFileOffset:rva64];  
-      NSString * caption = [self findSymbolAtRVA64:rva64];
-      MATCH_STRUCT(protocol64_t,location)
-      [self createObjC2Protocol64Node:node
-                              caption:caption
-                             location:location
-                             protocol:protocol64_t];
+    
+    if (protocolNode && protocols->size() > 0) {
+        for (Pointer64Vector::const_iterator iter = protocols->begin(); iter != protocols->end(); ++iter)
+        {
+            uint64_t const & rva64 = *iter;
+            
+            uint32_t location = [self RVA64ToFileOffset:rva64];
+            NSString * caption = [self findSymbolAtRVA64:rva64];
+            MATCH_STRUCT(protocol64_t,location)
+            [self createObjC2Protocol64Node:protocolNode
+                                    caption:caption
+                                   location:location
+                                   protocol:protocol64_t];
+        }
     }
-  }
-  
 }
 
 @end

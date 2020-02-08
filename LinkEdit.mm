@@ -1855,4 +1855,35 @@ using namespace std;
   return node;
 }
 
+- (MVNode *)createStringTableNode:parent
+                                 caption:(NSString *)caption
+                                location:(uint32_t)location
+                                  length:(uint32_t)length {
+    //字符串是按xxx.xxxx.xxx
+    MVNodeSaver nodeSaver;
+    MVNode * node = [parent insertChildWithDetails:caption location:location length:length saver:nodeSaver];
+    char * strPtr = (char *)[self imageAt:location];
+    uint32_t index = 0;
+    uint32_t begin = 0;
+    NSString * lastReadHex;
+    while (index < length) {
+        if (strPtr[index] == '\0') {
+            NSData *data = [NSData dataWithBytes:(strPtr + begin) length:(index - begin)];
+            NSString *str = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
+            begin = index + 1;
+            NSRange range = NSMakeRange(begin, 0);
+            [dataController read_uint64:range lastReadHex:&lastReadHex];
+            if (str.length > 0) {
+                [node.details appendRow:[NSString stringWithFormat:@"%.8lX", location + (NSUInteger)begin]
+                                       :lastReadHex
+                                       :@"CString"
+                                       :str? str : @""];
+                [node.details setAttributes:MVUnderlineAttributeName,@"YES",nil];
+            }
+        }
+        index ++;
+    }
+    return node;
+    
+}
 @end
