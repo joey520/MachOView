@@ -748,6 +748,7 @@ _hex2int(char const * a, uint32_t len)
   }
 
   MVNode * symtabNode = nil;
+  MVNode *stringNode = nil;
   MVNode * dysymtabNode = nil;
   MVNode * twoLevelHintsNode = nil;
   MVNode * segmentSplitInfoNode = nil;
@@ -763,7 +764,7 @@ _hex2int(char const * a, uint32_t len)
                              location:symtab_command->symoff + imageOffset
                                length:symtab_command->nsyms * sizeof(struct nlist_64)];
     
-    [self createDataNode:rootNode 
+    stringNode = [self createDataNode:rootNode
                  caption:@"String Table"
                 location:symtab_command->stroff + imageOffset
                   length:symtab_command->strsize];
@@ -861,6 +862,11 @@ _hex2int(char const * a, uint32_t len)
                         caption:(lastNodeCaption = @"Symbols")
                        location:symtabNode.dataRange.location
                          length:symtabNode.dataRange.length];
+        
+        //解析string table
+        if (stringNode && symtab_command->stroff && symtab_command->strsize > 0) {
+            [self createStringTableNode:stringNode caption:@"Strings" location:symtab_command->stroff length:symtab_command->strsize];
+        }
     }
     @catch(NSException * exception)
     {
@@ -1677,6 +1683,8 @@ struct CompareSectionByName
       section = [self findSectionByName:"__category_list" andSegment:"__OBJC2"];
       if (section == NULL)
         section = [self findSectionByName:"__objc_catlist" andSegment:"__DATA"];
+      if (section == NULL)
+        section = [self findSectionByName:"__objc_catlist" andSegment:"__DATA_CONST"];
       if ((sectionNode = [self findNodeByUserInfo:[self userInfoForSection:section]]))
       {
         [self createObjC2PointerListNode:sectionNode
@@ -1689,6 +1697,8 @@ struct CompareSectionByName
       section = [self findSectionByName:"__class_list" andSegment:"__OBJC2"];
       if (section == NULL)
         section = [self findSectionByName:"__objc_classlist" andSegment:"__DATA"];
+      if (section == NULL)
+        section = [self findSectionByName:"__objc_classlist" andSegment:"__DATA_CONST"];
       if ((sectionNode = [self findNodeByUserInfo:[self userInfoForSection:section]]))
       {
         [self createObjC2PointerListNode:sectionNode 
@@ -1725,6 +1735,8 @@ struct CompareSectionByName
       section = [self findSectionByName:"__protocol_list" andSegment:"__OBJC2"];
       if (section == NULL)
         section = [self findSectionByName:"__objc_protolist" andSegment:"__DATA"];
+      if (section == NULL)
+        section = [self findSectionByName:"__objc_protolist" andSegment:"__DATA_CONST"];
       if ((sectionNode = [self findNodeByUserInfo:[self userInfoForSection:section]]))
       {
         [self createObjC2PointerListNode:sectionNode 
@@ -1798,13 +1810,19 @@ struct CompareSectionByName
   MVNode * sectionNode;
   struct section_64 const * section_64;
   
+    MVNode *classNode;
+    MVNode *categoryNode;
+    MVNode *protocolNode;
   @try 
   {
     section_64 = [self findSection64ByName:"__class_list" andSegment:"__OBJC2"];
     if (section_64 == NULL)
       section_64 = [self findSection64ByName:"__objc_classlist" andSegment:"__DATA"];
+    if (section_64 == NULL)
+      section_64 = [self findSection64ByName:"__objc_classlist" andSegment:"__DATA_CONST"];
     if ((sectionNode = [self findNodeByUserInfo:[self userInfoForSection64:section_64]]))
     {
+        classNode = sectionNode;
       [self createObjC2Pointer64ListNode:sectionNode 
                                  caption:(lastNodeCaption = @"ObjC2 Class List") 
                                 location:section_64->offset + imageOffset 
@@ -1839,8 +1857,11 @@ struct CompareSectionByName
     section_64 = [self findSection64ByName:"__category_list" andSegment:"__OBJC2"];
     if (section_64 == NULL)
       section_64 = [self findSection64ByName:"__objc_catlist" andSegment:"__DATA"];
+    if (section_64 == NULL)
+      section_64 = [self findSection64ByName:"__objc_catlist" andSegment:"__DATA_CONST"];
     if ((sectionNode = [self findNodeByUserInfo:[self userInfoForSection64:section_64]]))
     {
+        categoryNode = sectionNode;
       [self createObjC2Pointer64ListNode:sectionNode 
                                  caption:(lastNodeCaption = @"ObjC2 Category List")
                                 location:section_64->offset + imageOffset 
@@ -1851,8 +1872,11 @@ struct CompareSectionByName
     section_64 = [self findSection64ByName:"__protocol_list" andSegment:"__OBJC2"];
     if (section_64 == NULL)
       section_64 = [self findSection64ByName:"__objc_protolist" andSegment:"__DATA"];
+    if (section_64 == NULL)
+      section_64 = [self findSection64ByName:"__objc_protolist" andSegment:"__DATA_CONST"];
     if ((sectionNode = [self findNodeByUserInfo:[self userInfoForSection64:section_64]]))
     {
+        protocolNode = sectionNode;
       [self createObjC2Pointer64ListNode:sectionNode 
                                  caption:(lastNodeCaption = @"ObjC2 Pointer List")
                                 location:section_64->offset + imageOffset 
@@ -1874,6 +1898,8 @@ struct CompareSectionByName
     section_64 = [self findSection64ByName:"__image_info" andSegment:"__OBJC"];
     if (section_64 == NULL)
       section_64 = [self findSection64ByName:"__objc_imageinfo" andSegment:"__DATA"];
+    if (section_64 == NULL)
+      section_64 = [self findSection64ByName:"__objc_imageinfo" andSegment:"__DATA_CONST"];
     if ((sectionNode = [self findNodeByUserInfo:[self userInfoForSection64:section_64]]))
     {
       [self createObjCImageInfoNode:sectionNode 
@@ -1890,6 +1916,7 @@ struct CompareSectionByName
                              location:section_64->offset + imageOffset 
                                length:section_64->size];
     }
+
   }
   @catch(NSException * exception)
   {
@@ -1899,9 +1926,12 @@ struct CompareSectionByName
   
   @try
   {
-    [self parseObjC2Class64Pointers:&objcClassPointers
-                 Category64Pointers:&objcCategoryPointers
-                 Protocol64Pointers:&objcProtocolPointers];
+      [self parseObjC2Class64Pointers:&objcClassPointers
+                            classNode:classNode
+                   Category64Pointers:&objcCategoryPointers
+                         categoryNode:categoryNode
+                   Protocol64Pointers:&objcProtocolPointers
+                         protocolNode:protocolNode];
   }
   @catch(NSException * exception)
   {

@@ -89,6 +89,10 @@
                                 location:(uint32_t)location
                                   length:(uint32_t)length;
 
+- (MVNode *)createStringTableNode:parent
+                          caption:(NSString *)caption
+                         location:(uint32_t)location
+                           length:(uint32_t)length;
 
 @end
 

@@ -71,7 +71,10 @@ typedef std::vector<uint64_t> Pointer64Vector;
               ProtocolPointers:(PointerVector const *)protocols;
 
 -(void)parseObjC2Class64Pointers:(Pointer64Vector const *)classes
+                       classNode:(MVNode *)classNode
               Category64Pointers:(Pointer64Vector const *)categories
-              Protocol64Pointers:(Pointer64Vector const *)protocols;
+                    categoryNode:(MVNode *)categoryNode
+              Protocol64Pointers:(Pointer64Vector const *)protocols
+                    protocolNode:(MVNode *)protocolNode;
 
 @end
