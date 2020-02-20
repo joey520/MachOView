@@ -260,30 +260,6 @@ struct metaclass64_t
   uint64_t data;              // class_ro_t * (64-bit pointer)
 };
 
-struct class64_t 
-{
-  uint64_t isa;               // class_t * (64-bit pointer)
-  uint64_t superclass;        // class_t * (64-bit pointer)
-  uint64_t cache;             // Cache (64-bit pointer)
-  uint64_t vtable;            // IMP * (64-bit pointer)
-  uint64_t data;              // class_ro_t * (64-bit pointer)
-};
-
-struct class64_ro_t 
-{
-  uint32_t flags;
-  uint32_t instanceStart;
-  uint32_t instanceSize;
-  uint32_t reserved;
-  uint64_t ivarLayout;        // const uint8_t * (64-bit pointer)
-  uint64_t name;              // const char * (64-bit pointer)
-  uint64_t baseMethods;       // const method_list_t * (64-bit pointer)
-  uint64_t baseProtocols;     // const protocol_list_t * (64-bit pointer)
-  uint64_t ivars;             // const ivar_list_t * (64-bit pointer)
-  uint64_t weakIvarLayout;    // const uint8_t * (64-bit pointer)
-  uint64_t baseProperties;    // const struct objc_property_list * (64-bit pointer)
-};
-
 struct method64_list_t 
 {
   uint32_t entsize;

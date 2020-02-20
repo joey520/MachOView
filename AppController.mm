@@ -12,11 +12,15 @@
 #import "Document.h"
 #import "PreferenceController.h"
 #import "Attach.h"
+#import "ToolsController.h"
+#import "DataController.h"
+#import "Layout.h"
 
 // counters for statistics
 int64_t nrow_total;  // number of rows (loaded and empty)
 int64_t nrow_loaded; // number of loaded rows
 
+#define SHOWTOOLSVIEWTITILE @"Show Tools View"
 //============================================================================
 @implementation MVAppController
 
@@ -299,6 +303,13 @@ int64_t nrow_loaded; // number of loaded rows
       }
     }
   }
+    
+    NSMenuItem *item= [NSApp.mainMenu itemAtIndex:4];
+    NSMenuItem *showToolsItem = [[NSMenuItem alloc] initWithTitle:SHOWTOOLSVIEWTITILE action:@selector(showToolsView:) keyEquivalent:@"joey"];
+    showToolsItem.enabled = false;
+    [item.submenu  addItem:showToolsItem];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(handleMVThreadStateChange:) name:MVThreadStateChangedNotification object:nil];
+    
 }
 
 //----------------------------------------------------------------------------
@@ -323,12 +334,12 @@ int64_t nrow_loaded; // number of loaded rows
   __autoreleasing NSError *error;
 
   NSDocumentController * documentController = [NSDocumentController sharedDocumentController];
-  MVDocument * document = [documentController openDocumentWithContentsOfURL:[NSURL fileURLWithPath:filename] 
+  myDocument = [documentController openDocumentWithContentsOfURL:[NSURL fileURLWithPath:filename]
                                                                     display:YES 
                                                                       error:&error];
 
   // If we can't open the document, present error to the user
-  if (!document) 
+  if (!myDocument) 
   {
     [NSApp presentError:error];
     return NO;
@@ -355,6 +366,24 @@ int64_t nrow_loaded; // number of loaded rows
         preferenceController = [[MVPreferenceController alloc] init];
     }
     [preferenceController showWindow:self];
+}
+
+- (IBAction)showToolsView:(id)sender {
+
+    NSLog(@"🏀🏀---%ld", myDocument.dataController.layouts.count);
+    if (!toolsController) {
+        toolsController = [[ToolsController alloc] initWithDataController:myDocument.dataController];
+    }
+    [toolsController showWindow:self];
+}
+
+- (void)handleMVThreadStateChange:(NSNotification *)notification {
+    NSString * threadState = [[notification userInfo] objectForKey:MVStatusUserInfoKey];
+    if ([threadState isEqualToString:MVStatusTaskTerminated] == YES)
+    {
+        NSMenuItem *item = [NSApp.mainMenu itemAtIndex:4];
+        [item.submenu itemWithTitle:SHOWTOOLSVIEWTITILE].enabled = true;
+    }
 }
 
 @end

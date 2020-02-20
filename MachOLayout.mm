@@ -36,6 +36,10 @@ using namespace std;
   if (self = [super initWithDataController:dc rootNode:node])
   {
     symbolNames = [[NSMutableDictionary alloc] init];
+      _allClassLists = [NSMutableArray array];
+      _unusedClassLists = [NSMutableArray array];
+      _unusedMethodLists = [NSMutableArray array];
+      _allMethodLists = [NSMutableArray array];
   }
   return self;
 }
@@ -1938,6 +1942,7 @@ struct CompareSectionByName
     [self printException:exception caption:lastNodeCaption];
   }
   
+    [self findUnusedClasses:objcClassPointers classrefed:objcClassReferences];
 }
 
 //-----------------------------------------------------------------------------
@@ -2630,5 +2635,39 @@ struct CompareSectionByName
   
   [dataController updateStatus:MVStatusTaskTerminated];
 }
+
+- (void)findUnusedClasses:(Pointer64Vector)classList classrefed:(Pointer64Vector)classref {
+    set<uint64_t> classRefs;
+    set<uint64_t> unusedClasses;
+    for (Pointer64Vector::const_iterator it = classref.begin(); it != classref.end(); it ++) {
+        //注意这里可能引用不一定是工程中的
+        classRefs.insert(*it);
+    }
+
+    for (Pointer64Vector::const_iterator it = classList.begin(); it != classList.end(); it ++) {
+        uint64_t const & rva64 = *it;
+        NSString *className = [self praseClassNameForRva:rva64];
+        [_allClassLists addObject:className];
+        if (classRefs.find(*it) == classRefs.end()) {
+            unusedClasses.insert(*it);
+        }
+    }
+
+    for (set<uint64_t>::const_iterator iter = unusedClasses.begin(); iter != unusedClasses.end(); iter ++) {
+        uint64_t const & rva64 = *iter;
+        NSString *className = [self praseClassNameForRva:rva64];
+        [_unusedClassLists addObject:className];
+    }
+}
+
+- (NSString *)praseClassNameForRva:(uint64_t)rva {
+    uint32_t location = [self RVA64ToFileOffset:rva];
+    MATCH_STRUCT(class64_t,location)
+    location = [self RVA64ToFileOffset:class64_t->data];
+    MATCH_STRUCT(class64_ro_t, location)
+    NSString *className = [self findSymbolAtRVA64:class64_ro_t->name];
+    return className;
+}
+
 
 @end

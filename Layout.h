@@ -43,5 +43,5 @@
                                caption:(NSString *)caption
                               location:(uint32_t)location
                                 length:(uint32_t)length;
-
+- (MVNode *)rootNode;
 @end

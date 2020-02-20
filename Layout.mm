@@ -57,6 +57,9 @@
   return self;
 }
 
+- (MVNode *)rootNode {
+    return rootNode;
+}
 //-----------------------------------------------------------------------------
 - (void const *)imageAt:(uint32_t)location
 {

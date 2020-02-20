@@ -9,10 +9,14 @@
 #import <Cocoa/Cocoa.h>
 
 @class MVPreferenceController;
+@class ToolsController;
+@class MVDocument;
 
 @interface MVAppController : NSObject <NSApplicationDelegate,NSOpenSavePanelDelegate>
 {
   MVPreferenceController * preferenceController;
+    ToolsController *toolsController;
+    MVDocument * myDocument;
 }
 
 - (IBAction)showPreferencePanel:(id)sender;
